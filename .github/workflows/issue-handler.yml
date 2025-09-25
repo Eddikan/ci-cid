@@ -1,0 +1,61 @@
+name: Issue Event Handler
+
+on:
+  issues:
+    types: [opened, closed, edited, assigned, unassigned, labeled, unlabeled]
+
+jobs:
+  log-issue-details:
+    name: Log Issue Event Details
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Output Issue Event Details
+        run: |
+          echo "=== GitHub Issue Event Details ==="
+          echo "Event Action: ${{ github.event.action }}"
+          echo "Issue Number: ${{ github.event.issue.number }}"
+          echo "Issue Title: ${{ github.event.issue.title }}"
+          echo "Issue Author: ${{ github.event.issue.user.login }}"
+          echo "Issue State: ${{ github.event.issue.state }}"
+          echo "Issue URL: ${{ github.event.issue.html_url }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Event Sender: ${{ github.event.sender.login }}"
+          echo "Created At: ${{ github.event.issue.created_at }}"
+          echo "Updated At: ${{ github.event.issue.updated_at }}"
+          
+          if [[ "${{ github.event.issue.assignee }}" != "null" ]]; then
+            echo "Assignee: ${{ github.event.issue.assignee.login }}"
+          else
+            echo "Assignee: Not assigned"
+          fi
+          
+          if [[ "${{ github.event.issue.body }}" != "" ]]; then
+            echo "Issue Body (first 200 chars): ${{ github.event.issue.body }}" | head -c 200
+            echo "..."
+          else
+            echo "Issue Body: (empty)"
+          fi
+          
+          echo "=== Labels ==="
+          if [[ "${{ github.event.issue.labels }}" != "[]" ]]; then
+            echo '${{ toJson(github.event.issue.labels) }}' | jq -r '.[].name' | while read label; do
+              echo "- $label"
+            done
+          else
+            echo "No labels"
+          fi
+          
+          echo "=== End of Issue Details ==="
+      
+      - name: Comment on Issue (for opened issues)
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '👋 Thank you for opening this issue! Our team has been notified and will review it shortly.'
+            })
